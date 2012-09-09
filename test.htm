@@ -1,0 +1,594 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Test</title>
+		<style>
+			body {
+				background: #ddd;
+				color: #666;
+				font-family: sans-serif;
+				text-align: center;
+				margin: 0;
+			}
+			canvas {
+				display: inline-block;
+				border: 2px solid #666;
+				background: #fff;
+				cursor: move;
+				position: relative;
+			}
+			h1 {
+				color: #9ab;
+				text-shadow: 0 1px 0 rgba(255,255,255,0.6), 0 -1px 0 rgba(0,0,0,0.4);
+				font-size: 32px;
+				font-weight: bold;
+			}
+			.block {
+				display: block;
+				float: left;
+				width: 20%;
+				margin: 0;
+				padding: 0;
+			}
+			@media screen and (max-width: 1600px) {
+				.block { width: 25%; }
+			}
+			@media screen and (max-width: 1280px) {
+				.block { width: 33.33%; }
+			}
+			@media screen and (max-width: 960px) {
+				.block { width: 50%; }
+			}
+			@media screen and (max-width: 640px) {
+				.block { width: 100%; }
+			}
+		</style>
+		<script src="js/three2.js"></script>
+		<script>
+			window.addEventListener('load', init, false);
+
+			var cs = ['one_d','axes','proj','sep'];
+
+			var cvs = {};
+			var ctx = {};
+
+			var obj1, obj2;
+
+			var opts = {
+				'one_d': {
+					x: 0,
+					w: 32,
+					mx: 0,
+					my: 0,
+					md: false,
+					moused: function(e) {
+						opts['one_d'].md = true;
+						e.preventDefault();
+						return false;
+					},
+					mousem: function(e) {
+						if (e.which == 1 && opts['one_d'].md) {
+							opts['one_d'].x += e.layerX - opts['one_d'].mx;
+							opts['one_d'].w += e.layerY - opts['one_d'].my;
+							if (opts['one_d'].w < 1) opts['one_d'].w = 1;
+						}
+						opts['one_d'].mx = e.layerX;
+						opts['one_d'].my = e.layerY;
+						e.preventDefault();
+						return false;
+					},
+					mouseu: function(e) {
+						opts['one_d'].md = false;
+					}
+				},
+				'axes': {
+					vid: 0,
+					poly: [{x:-50,y:-50},
+							{x: 50,y:-50},
+							{x: 50,y: 22},
+							{x: 0,y: 38},
+							{x:-50,y: 50}],
+					//poly: [{"x":-22,"y":-46},{"x":35,"y":-41},{"x":55,"y":-4},{"x":39,"y":29},{"x":-2,"y":42},{"x":-43,"y":28},{"x":-56,"y":-10}],
+					mx: 0,
+					my: 0,
+					md: false,
+					moused: function(e) {
+						opts['axes'].md = true;
+						var sl = 1000, si = 0, nl, x, y;
+						for (var i = 0; i < opts['axes'].poly.length; i++) {
+							x = opts['axes'].poly[i].x - (e.layerX - 2 - cvs['axes'].width / 2);
+							y = opts['axes'].poly[i].y - (e.layerY - 2 - cvs['axes'].height/ 2);
+							nl = Math.sqrt(x*x+y*y);
+							if (nl < sl) {
+								sl = nl;
+								si = i;
+							}
+						}
+						opts['axes'].vid = si;
+						e.preventDefault();
+						return false;
+					},
+					mousem: function(e) {
+						if (e.which == 1 && opts['axes'].md) {
+							opts['axes'].poly[opts['axes'].vid].x += e.layerX - 2 - opts['axes'].mx;
+							opts['axes'].poly[opts['axes'].vid].y += e.layerY - 2 - opts['axes'].my;
+							if (opts['axes'].w < 1) opts['axes'].w = 1;
+						}
+						opts['axes'].mx = e.layerX - 2;
+						opts['axes'].my = e.layerY - 2;
+						e.preventDefault();
+						return false;
+					},
+					mouseu: function(e) {
+						opts['axes'].md = false;
+					}
+				},
+				'proj': {
+					axis: { x: 0, y: 1 },
+					mx: 0,
+					my: 0,
+					md: false,
+					moused: function(e) {
+						opts['proj'].md = true;
+						e.preventDefault();
+						return false;
+					},
+					mousem: function(e) {
+						if (e.which == 1 && opts['proj'].md) {
+							var r = Math.atan2(e.layerX - 2 - cvs['proj'].width / 2, e.layerY - 2 - cvs['proj'].height / 2);
+							opts['proj'].axis.x = Math.sin(r);
+							opts['proj'].axis.y = Math.cos(r);
+						}
+						opts['proj'].mx = e.layerX - 2;
+						opts['proj'].my = e.layerY - 2;
+						e.preventDefault();
+						return false;
+					},
+					mouseu: function(e) {
+						opts['proj'].md = false;
+					}
+				},
+				'sep': {
+					pos: { x: 50, y: 50 },
+					mx: 0,
+					my: 0,
+					md: false,
+					moused: function(e) {
+						opts['sep'].md = true;
+						e.preventDefault();
+						return false;
+					},
+					mousem: function(e) {
+						if (e.which == 1 && opts['sep'].md) {
+							opts['sep'].pos.x += (e.layerX - 2) - opts['sep'].mx;
+							opts['sep'].pos.y += (e.layerY - 2) - opts['sep'].my;
+						}
+						opts['sep'].mx = e.layerX - 2;
+						opts['sep'].my = e.layerY - 2;
+						e.preventDefault();
+						return false;
+					},
+					mouseu: function(e) {
+						opts['sep'].md = false;
+					}
+				}
+			}
+
+			function init() {
+				for (var i = 0; i < cs.length; i++) {
+					cvs[cs[i]] = document.getElementById('cvs_'+cs[i]);
+					ctx[cs[i]] = cvs[cs[i]].getContext('2d');
+					if (typeof opts[cs[i]] !== 'undefined' && typeof opts[cs[i]].moused !== 'undefined') {
+						cvs[cs[i]].addEventListener('mousedown', opts[cs[i]].moused, false);
+						cvs[cs[i]].addEventListener('mousemove', opts[cs[i]].mousem, false);
+						cvs[cs[i]].addEventListener('mouseup', opts[cs[i]].mouseu, false);
+					} else {
+						cvs[cs[i]].addEventListener('mousedown', function(e){e.preventDefault(true);return false;}, false);
+						cvs[cs[i]].addEventListener('mousemove', function(e){e.preventDefault(true);return false;}, false);
+						cvs[cs[i]].addEventListener('mouseup', function(e){e.preventDefault(true);return false;}, false);
+					}
+					cvs[cs[i]].height = 300;
+					ctx[cs[i]].shadowBlur = 3;
+					ctx[cs[i]].shadowColor = '#000';
+					ctx[cs[i]].shadowOffsetY = 1;
+					ctx[cs[i]].textAlign = 'center';
+					ctx[cs[i]].textBaseline = 'middle';
+					ctx[cs[i]].translate(cvs[cs[i]].width / 2, cvs[cs[i]].height / 2);
+				}
+				setInterval(draw,16);
+			}
+
+			function draw() {
+
+				var c, g, i;
+
+				  ////////////////////////
+				 // 1D Separation Draw //
+				////////////////////////
+				c = cvs['one_d'];
+				g = ctx['one_d'];
+				g.clearRect(-c.width / 2, -c.height / 2, c.width, c.height);
+
+				var amin = -32;
+				var amax = 32;
+				var bmin = opts['one_d'].x - opts['one_d'].w;
+				var bmax = opts['one_d'].x + opts['one_d'].w;
+
+				// Base 1D Object
+				g.fillStyle = '#666';
+				g.fillRect(-32, -32, 64, 32);
+				// Base 1D Object Text
+				g.fillStyle = '#fff';
+				g.fillText('-32/32', 0, -16);
+				// User 1D Object
+				g.fillStyle = '#359';
+				g.fillRect(bmin, 0, bmax - bmin, 32);
+				// Separation Vector Draw
+				var sv = SAT.Separate1D(amin, amax, bmin, bmax);
+				if (sv > 0) {
+					drawVector(bmin, 0, sv, 0, g);
+				} else {
+					drawVector(bmax, 0, sv, 0, g);
+				}
+				// User 1D Object Text
+				g.fillStyle = '#fff';
+				g.fillText((bmin) + '/' + (bmax), opts['one_d'].x, 16);
+
+
+
+				  //////////////////////////
+				 // Axis Generation Draw //
+				//////////////////////////
+				c = cvs['axes'];
+				g = ctx['axes'];
+				g.clearRect(-c.width / 2, -c.height / 2, c.width, c.height);
+
+				g.strokeStyle = '#000';
+				g.beginPath();
+				for (i = 0; i < opts['axes'].poly.length; i++) {
+					g.lineTo(opts['axes'].poly[i].x, opts['axes'].poly[i].y);
+				}
+				g.closePath();
+				g.stroke();
+
+				var axes = GetAxes(opts['axes'].poly);
+				for (i = 0; i < axes.length; i++) {
+					drawVector(axes[i].fx, axes[i].fy, axes[i].x * 32, axes[i].y * 32, g);
+				}
+
+				  /////////////////////
+				 // Projection Draw //
+				/////////////////////
+				c = cvs['proj'];
+				g = ctx['proj'];
+				g.clearRect(-c.width / 2, -c.height / 2, c.width, c.height);
+
+				var cp = SAT.Per(opts['proj'].axis);
+				var proj = SAT.ProjectOnto(opts['axes'].poly, cp);
+
+				g.fillStyle = 'rgba(0,0,0,0.05)';
+				g.beginPath();
+				g.moveTo(opts['proj'].axis.x * 256 + cp.x * proj.d1, opts['proj'].axis.y * 256 + cp.y * proj.d1);
+				g.lineTo(opts['proj'].axis.x * 256 + cp.x * proj.d2, opts['proj'].axis.y * 256 + cp.y * proj.d2);
+				g.lineTo(opts['proj'].axis.x *-256 + cp.x * proj.d2, opts['proj'].axis.y *-256 + cp.y * proj.d2);
+				g.lineTo(opts['proj'].axis.x *-256 + cp.x * proj.d1, opts['proj'].axis.y *-256 + cp.y * proj.d1);
+				g.fill();
+
+				g.strokeStyle = '#999';
+				g.beginPath();
+				g.moveTo(opts['proj'].axis.x * 100 + cp.x * 256, opts['proj'].axis.y * 100 + cp.y * 256);
+				g.lineTo(opts['proj'].axis.x * 100 - cp.x * 256, opts['proj'].axis.y * 100 - cp.y * 256);
+				g.stroke();
+
+				g.strokeStyle = '#359';
+				g.beginPath();
+				g.moveTo(opts['proj'].axis.x * 92 + cp.x * proj.d1, opts['proj'].axis.y * 92 + cp.y * proj.d1);
+				g.lineTo(opts['proj'].axis.x * 92 + cp.x * proj.d2, opts['proj'].axis.y * 92 + cp.y * proj.d2);
+				g.stroke();
+
+				g.strokeStyle = '#000';
+				g.beginPath();
+				for (i = 0; i < opts['axes'].poly.length; i++) {
+					g.lineTo(opts['axes'].poly[i].x, opts['axes'].poly[i].y);
+				}
+				g.closePath();
+				g.stroke();
+
+				drawVector(0, 0, opts['proj'].axis.x * 32, opts['proj'].axis.y * 32, g);
+
+				  /////////////////////
+				 // Separation Draw //
+				/////////////////////
+				c = cvs['sep'];
+				g = ctx['sep'];
+				g.clearRect(-c.width / 2, -c.height / 2, c.width, c.height);
+
+				g.strokeStyle = '#000';
+				g.beginPath();
+				for (i = 0; i < opts['axes'].poly.length; i++) {
+					g.lineTo(opts['axes'].poly[i].x, opts['axes'].poly[i].y);
+				}
+				g.closePath();
+				g.stroke();
+
+				g.strokeStyle = 'rgba(0,0,0,0.2)';
+				g.strokeRect(opts['sep'].pos.x - 20, opts['sep'].pos.y - 20, 40, 40);
+
+				var sv = SAT.Separate(new SAT.AABB(opts['sep'].pos.x, opts['sep'].pos.y, 20, 20), opts['axes'].poly, g);
+
+				drawVector(opts['sep'].pos.x, opts['sep'].pos.y, sv.x, sv.y, g);
+
+				g.strokeStyle = '#000';
+				g.strokeRect(opts['sep'].pos.x - 20 + sv.x, opts['sep'].pos.y - 20 + sv.y, 40, 40);
+
+			}
+
+			function drawVector(x,y,vx,vy,g,c) {
+				var s = 1;
+				var l = Math.sqrt(vx * vx + vy * vy);
+				var px = -vy / l * 8;
+				var py = vx / l * 8;
+				var ld = s - 8 / l;
+				g.beginPath();
+				g.moveTo(x,y);
+				g.lineTo(x+vx*s,y+vy*s);
+				g.moveTo(x+vx*ld+px,y+vy*ld+py);
+				g.lineTo(x+vx*s,y+vy*s);
+				g.lineTo(x+vx*ld-px,y+vy*ld-py);
+				g.strokeStyle = c!==undefined?c:'#c00';
+				g.stroke();
+			}
+
+			function GetAxes(points,and) {
+				var axes = typeof and !== 'undefined' ? and : [], ax, pd, l;
+				for (var i = 0; i < points.length; i++) { // Step through vertices clockwise.
+					pd = new THREE.Vector2(points[(i+1)%points.length].x - points[i].x, points[(i+1)%points.length].y - points[i].y);
+					l = Math.sqrt(pd.x * pd.x + pd.y * pd.y);
+					ax = SAT.Per(pd); // Get edge normal.
+					if (axes.indexOf(ax) == -1) {
+						axes.push({x: ax.x / l, y: ax.y / l, fx: points[i].x + pd.x / 2, fy: points[i].y + pd.y / 2});
+					}
+				}
+				return axes;
+			}
+
+			window.SAT = {
+				res: {
+					axes: [],
+					pts: [],
+					separation: { x: 0, y: 0, v: 0 },
+					projection: { minx: 0, miny: 0, magx: 0, magy: 0, minv: 0, maxv: 0 },
+					project: { x: 0, y: 0, v: 0 }
+				},
+
+				Dot: function(a,b) {
+					return a.x * b.x + a.y * b.y;
+				},
+				Per: function(v) { // Right perproduct.
+					return new THREE.Vector2(v.y, -v.x);
+				},
+				Per2: function(v) { // Left perproduct.
+					return new THREE.Vector2(-v.y, v.x);
+				},
+				LengthSq: function(v) { // Length Squared)
+					return v.x * v.x + v.y * v.y;
+				},
+
+				Project: function(a,b) { // Project point onto line.
+					var v = SAT.Dot(a,b) / SAT.LengthSq(b);
+					var r = new THREE.Vector3(v * b.x, v * b.y, v);
+					return r;
+				},
+				ProjectOnto: function(a,v) { // Project object onto line.
+					var pts = [], min, max, i;
+
+					if (a instanceof SAT.AABB) {
+						SAT.eProject(a.x-a.w, a.y-a.h, v.x, v.y);
+						pts.push(new THREE.Vector3(SAT.res.project.x, SAT.res.project.y, SAT.res.project.v));
+						SAT.eProject(a.x-a.w, a.y+a.h, v.x, v.y);
+						pts.push(new THREE.Vector3(SAT.res.project.x, SAT.res.project.y, SAT.res.project.v));
+						SAT.eProject(a.x+a.w, a.y+a.h, v.x, v.y);
+						pts.push(new THREE.Vector3(SAT.res.project.x, SAT.res.project.y, SAT.res.project.v));
+						SAT.eProject(a.x+a.w, a.y-a.h, v.x, v.y);
+						pts.push(new THREE.Vector3(SAT.res.project.x, SAT.res.project.y, SAT.res.project.v));
+						// pts.push(SAT.Project(new THREE.Vector2(a.x - a.w, a.y - a.h), v));
+						// pts.push(SAT.Project(new THREE.Vector2(a.x - a.w, a.y + a.h), v));
+						// pts.push(SAT.Project(new THREE.Vector2(a.x + a.w, a.y - a.h), v));
+						// pts.push(SAT.Project(new THREE.Vector2(a.x + a.w, a.y + a.h), v));
+					} else {
+						for (i = a.length - 1; i >= 0; i--) {
+							SAT.eProject(a[i].x, a[i].y, v.x, v.y);
+							pts.push(new THREE.Vector3(SAT.res.project.x, SAT.res.project.y, SAT.res.project.v));
+							// pts.push(SAT.Project(a[i], v));
+						}
+					}
+					min = max = pts[0];
+					for (i = pts.length - 1; i > 0; i--) {
+						if (pts[i].z < min.z) min = pts[i];
+						if (pts[i].z > max.z) max = pts[i];
+					}
+					return new SAT.Line(min.x, min.y, max.x, max.y, min.z, max.z);
+				},
+
+
+
+
+				eProject: function(px,py,vx,vy) { // Project point onto axis vx/vy.
+					SAT.res.project.v = (px * vx + py * vy) / (vx * vx + vy * vy);
+					SAT.res.project.x = SAT.res.project.v * vx;
+					SAT.res.project.y = SAT.res.project.v * vy;
+				},
+				eProjectOnto: function(vx,vy) { // Project object onto axis vx/vy.
+					var min, max, i;
+
+					// Step through all the points to project.
+					for (i = 0; i < SAT.res.pts.length; i++) {
+
+					}
+
+
+
+					if (a instanceof SAT.AABB) {
+						pts.push(SAT.Project(new THREE.Vector2(a.x - a.w, a.y - a.h), v));
+						pts.push(SAT.Project(new THREE.Vector2(a.x - a.w, a.y + a.h), v));
+						pts.push(SAT.Project(new THREE.Vector2(a.x + a.w, a.y - a.h), v));
+						pts.push(SAT.Project(new THREE.Vector2(a.x + a.w, a.y + a.h), v));
+					} else {
+						for (i = a.length - 1; i >= 0; i--) {
+							pts.push(SAT.Project(a[i], v));
+						}
+					}
+					min = max = pts[0];
+					for (i = pts.length - 1; i > 0; i--) {
+						if (pts[i].z < min.z) min = pts[i];
+						if (pts[i].z > max.z) max = pts[i];
+					}
+					return new SAT.Line(min.x, min.y, max.x, max.y, min.z, max.z);
+				},
+				ObjSeparate: function(a,b) {
+					// Check for AABB collision.
+					if (SAT.AABBvsAABB(a.box, b.box)) {
+						var i, l;
+						for (i = 0, l = a.axes.length; i < l; i++) {
+							// if ()
+						}
+					}
+					return false;
+				},
+
+
+
+
+				GetAxes: function(obj,and) {
+					var axes = typeof and !== 'undefined' ? and : [], ax, pd, l;
+					if (obj instanceof Array) {
+						for (var i = 0; i < obj.length; i++) { // Step through vertices clockwise.
+							pd = new THREE.Vector2(obj[(i+1)%obj.length].x - obj[i].x, obj[(i+1)%obj.length].y - obj[i].y);
+							//l = Math.sqrt(pd.x * pd.x + pd.y * pd.y);
+							l = Math.abs(pd.x) + Math.abs(pd.y);
+							ax = SAT.Per(pd); // Get edge normal.
+							if (axes.indexOf(ax) == -1) {
+								axes.push({x: ax.x / l, y: ax.y / l, fx: obj[i].x + pd.x / 2, fy: obj[i].y + pd.y / 2});
+							}
+						}
+					} else if(obj instanceof SAT.AABB) {
+						ax = { x: 0, y: 1, fx: obj.x, fy: obj.y + obj.h };
+						if (axes.indexOf(ax) == -1) { axes.push(ax); }
+						ax = { x: 1, y: 0, fx: obj.x + obj.w, fy: obj.y };
+						if (axes.indexOf(ax) == -1) { axes.push(ax); }
+						ax = { x: 0, y:-1, fx: obj.x, fy: obj.y - obj.h };
+						if (axes.indexOf(ax) == -1) { axes.push(ax); }
+						ax = { x:-1, y: 0, fx: obj.x - obj.w, fy: obj.y };
+						if (axes.indexOf(ax) == -1) { axes.push(ax); }
+					}
+					return axes;
+				},
+				Separate1D: function(a,b,c,d) {
+					if (a > d || b < c) return Number.MAX_VALUE; // Not touching.
+
+					if ((b > d && a < c) || (b < d && a > c)) { // CD inside AB or AB inside CD
+						if ((b-a)/2+a>=(d-c)/2+c) { // AB is right of CD
+							return a-d;
+						} else { // AB is right of CD
+							return b-c;
+						}
+					}
+
+					if (b >= d) {
+						return a-d;
+					} else {
+						return b-c;
+					}
+				},
+				Separate: function(a,b) {
+					var i, ap, bp, dp, pd, sd, vi, min = Number.MAX_VALUE;
+
+					var v = SAT.GetAxes(b);
+					v = SAT.GetAxes(a,v);
+
+					for (i = 0; i < v.length; i++) {
+							ap = SAT.ProjectOnto(a, v[i]);
+							bp = SAT.ProjectOnto(b, v[i]);
+							sd = SAT.Separate1D(bp.d1, bp.d2, ap.d1, ap.d2);
+
+							if (sd == Number.MAX_VALUE) return false;
+							if (Math.abs(sd) < Math.abs(min) && sd >= 0) {
+								min = sd;
+								vi = i;
+							}
+					}
+
+					return new THREE.Vector2(v[vi].x * min, v[vi].y * min);
+
+				},
+				AABBvsPoint: function(a,p) {
+					if (p.x <= a.x - a.w) return false;
+					if (p.x <= a.x + a.w) return false;
+					if (p.y >= a.y - a.h) return false;
+					if (p.y <= a.y + a.h) return false;
+					return true;
+				},
+				AABBvsAABB: function(a,b) {
+					//return SAT.AABBvsPoint(new SAT.AABB(a.x, a.y, a.w + b.w, a.h + b.h), b.x, b.y);
+					if (a.x + a.w <= b.x - b.w) return false;
+					if (a.x - a.w >= b.x + b.w) return false;
+					if (a.y + a.h <= b.y - b.h) return false;
+					if (a.y - a.h >= b.y + b.h) return false;
+					return true;
+				},
+				Object: function(o) {
+					o = o || {};
+					this.box = o.box || new SAT.AABB();
+					this.points = o.points || [];
+					this.axes = o.axes || SAT.getAxes(this.points);
+					this.position = new THREE.Vector2();
+				},
+				AABB: function(x,y,w,h,l,r,t,b) {
+					if (x instanceof THREE.Vector2) {
+						this.x = x.x;
+						this.y = x.y;
+						if (y instanceof THREE.Vector2) {
+							this.w = y.x;
+							this.h = y.y;
+						}
+					} else {
+						this.x = typeof x !== 'undefined' ? x : 0.5;
+						this.y = typeof y !== 'undefined' ? y : 0.5;
+						this.w = typeof w !== 'undefined' ? w : 0.5;
+						this.h = typeof h !== 'undefined' ? h : 0.5;
+					}
+					this.l = typeof l !== 'undefined' ? l : x - w;
+					this.r = typeof r !== 'undefined' ? r : x + w;
+					this.t = typeof t !== 'undefined' ? t : y + h;
+					this.b = typeof b !== 'undefined' ? b : y - h;
+					this.inflate = function(x,y) {
+						if (typeof y === 'undefined') {
+							y = x;
+						}
+						this.w += x;
+						this.h += y;
+						this.l = this.x - this.w;
+						this.r = this.x + this.w;
+						this.t = this.y + this.h;
+						this.b = this.y - this.h;
+						return this;
+					};
+				},
+				Line: function(x1,y1,x2,y2,d1,d2) {
+					this.x1 = x1;
+					this.y1 = y1;
+					this.x2 = x2;
+					this.y2 = y2;
+					this.d1 = d1 || 0;
+					this.d2 = d2 || 0;
+				}
+			};
+		</script>
+	</head>
+	<body>
+		<div class="block"><h1>1-D Separation</h1><canvas id="cvs_one_d"></canvas></div>
+		<div class="block"><h1>Axis Generation</h1><canvas id="cvs_axes"></canvas></div>
+		<div class="block"><h1>Projection</h1><canvas id="cvs_proj"></canvas></div>
+		<div class="block"><h1>Separation</h1><canvas id="cvs_sep"></canvas></div>
+	</body>
+</html>

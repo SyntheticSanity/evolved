@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Evolved</title>
+		<link href='http://fonts.googleapis.com/css?family=Press+Start+2P|Dosis:500' rel='stylesheet' type='text/css'>
+		<style>
+			body {
+				background-color: #000;
+				color: #ccc;
+				font-family: 'Dosis';
+				font-size: 8px;
+				margin: 0;
+				height: 100%;
+			}
+			ul {
+				list-style: none;
+				margin: 16px auto;
+				width: 800px;
+				padding: 8px;
+				text-align: center;
+			}
+			.header {
+				font-size: 16px;
+			}
+			canvas {
+				display: block;
+				margin: 0;
+				padding: 0;
+				position: absolute;
+				left: 0;
+				top: 0;
+			}
+		</style>
+		<script src='http://www.kongregate.com/javascripts/kongregate_api.js'></script>
+		<script src="http://nfd.ath.cx/socket.io/socket.io.js"></script>
+		<script>
+			window.webFontsLoaded = [];
+			function onWebfontLoad(font, callback) {
+				if (webFontsLoaded.indexOf(font) == -1) {
+					var div = document.createElement('div');
+					div.style.position = 'absolute';
+					div.style.left = '-5000px';
+					div.style.top = '-5000px';
+					div.style.font = '200px sans-serif';
+					div.innerHTML = 'giItT1WQy@!-/#';
+					document.body.appendChild(div);
+					pollResize(div,function(e){
+						if (typeof callback == 'function') callback({font:font});
+						if (div.parentNode) div.parentNode.removeChild(div);
+						webFontsLoaded[font] = true;
+					}, true);
+					div.style.font = '200px '+font;
+				} else {
+					if (typeof callback == 'function') callback({font:font});
+				}
+			}
+			function pollResize(e, callback, burn) {
+				e.lastSize = e.scrollWidth + ',' + e.scrollHeight;
+				var int = setInterval(function() {
+					if (e.lastSize != e.scrollWidth + ',' + e.scrollHeight) {
+						if (burn === true) clearInterval(int);
+						e.lastSize = e.scrollWidth + ',' + e.scrollHeight;
+						if (typeof callback == 'function') callback({width: e.scrollWidth, height: e.scrollHeight});
+					}
+				}, 100);
+			}
+		</script>
+		<script data-main="js/main" src="js/require.js"></script>
+	</head>
+</html>
