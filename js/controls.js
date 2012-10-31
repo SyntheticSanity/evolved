@@ -32,7 +32,7 @@ define(['gamepad'], function(Gamepad) {
 				right: 39,
 				up: 38,
 				down: 40,
-				dash: 16,
+				dash: 17,
 				menu: 13,
 				attack: 90,
 				special: 88,

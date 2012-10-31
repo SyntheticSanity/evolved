@@ -314,11 +314,28 @@
 				g.strokeStyle = 'rgba(0,0,0,0.2)';
 				g.strokeRect(opts['sep'].pos.x - 20, opts['sep'].pos.y - 20, 40, 40);
 
-				var sv = SAT.Separate(new SAT.AABB(opts['sep'].pos.x, opts['sep'].pos.y, 20, 20), opts['axes'].poly, g);
+				// var sv = SAT.Separate(new SAT.AABB(opts['sep'].pos.x, opts['sep'].pos.y, 20, 20), opts['axes'].poly, g);
+				// drawVector(opts['sep'].pos.x, opts['sep'].pos.y, sv.x, sv.y, g);
 
-				drawVector(opts['sep'].pos.x, opts['sep'].pos.y, sv.x, sv.y, g);
-
+				var a = new SAT.Object({
+					x: opts['sep'].pos.x,
+					y: opts['sep'].pos.y,
+					box: new SAT.AABB(0, 0, 20, 20)
+				});
+				a.calculatePoints();
+				a.calculateAxes();
+				var b = new SAT.Object({
+					x: 0,
+					y: 0,
+					points: opts['axes'].poly
+				});
+				b.calculateBox();
 				g.strokeStyle = '#000';
+				if (i = SAT.ObjSeparate(a,b)) g.strokeStyle = '#0c0';
+
+				console.log(i, SAT.res.separation.x, SAT.res.separation.y);
+				drawVector(opts['sep'].pos.x, opts['sep'].pos.y, SAT.res.separation.x + 1, SAT.res.separation.y + 1, g);
+
 				g.strokeRect(opts['sep'].pos.x - 20 + sv.x, opts['sep'].pos.y - 20 + sv.y, 40, 40);
 
 			}
@@ -413,20 +430,8 @@
 
 
 
-				eProject: function(px,py,vx,vy) { // Project point onto axis vx/vy.
-					SAT.res.project.v = (px * vx + py * vy) / (vx * vx + vy * vy);
-					SAT.res.project.x = SAT.res.project.v * vx;
-					SAT.res.project.y = SAT.res.project.v * vy;
-				},
 				eProjectOnto: function(vx,vy) { // Project object onto axis vx/vy.
 					var min, max, i;
-
-					// Step through all the points to project.
-					for (i = 0; i < SAT.res.pts.length; i++) {
-
-					}
-
-
 
 					if (a instanceof SAT.AABB) {
 						pts.push(SAT.Project(new THREE.Vector2(a.x - a.w, a.y - a.h), v));
@@ -445,16 +450,94 @@
 					}
 					return new SAT.Line(min.x, min.y, max.x, max.y, min.z, max.z);
 				},
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				Separate1D: function(a,b,c,d) {
+					if (a > d || b < c) return Number.MAX_VALUE; // Not touching.
+
+					if ((b > d && a < c) || (b < d && a > c)) { // CD inside AB or AB inside CD
+						if ((b-a)/2+a>=(d-c)/2+c) { // AB is right of CD
+							return a-d;
+						} else { // AB is right of CD
+							return b-c;
+						}
+					}
+
+					if (b >= d) {
+						return a-d;
+					} else {
+						return b-c;
+					}
+				},
+				eProject: function(px,py,vx,vy) { // Project point onto axis vx/vy.
+					SAT.res.project.v = (px * vx + py * vy) / (vx * vx + vy * vy);
+					SAT.res.project.x = SAT.res.project.v * vx;
+					SAT.res.project.y = SAT.res.project.v * vy;
+				},
 				ObjSeparate: function(a,b) {
 					// Check for AABB collision.
 					if (SAT.AABBvsAABB(a.box, b.box)) {
-						var i, l;
+						if (a.dirty) a.calculateAxes();
+						if (b.dirty) b.calculateAxes();
+						var i, l, p, c, m, u, v, w, x, y, z;
+						// Step through each axis and check collisions.
 						for (i = 0, l = a.axes.length; i < l; i++) {
-							// if ()
+							// Project points onto axis and find projection borders.
+							for (p = 0, c = a.points.length; p < c; p++) {
+								SAT.eProject(a.points[p].x, a.points[p].y, a.axes[i].x, a.axes[i].y);
+								if (p === 0 || SAT.res.project.v < u) u = SAT.res.project.v;
+								if (p === 0 || SAT.res.project.v > v) v = SAT.res.project.v;
+							}
+							for (p = 0, c = b.points.length; p < c; p++) {
+								SAT.eProject(b.points[p].x, b.points[p].y, a.axes[i].x, a.axes[i].y);
+								if (p === 0 || SAT.res.project.v < w) w = SAT.res.project.v;
+								if (p === 0 || SAT.res.project.v > x) x = SAT.res.project.v;
+							}
+							// Separate the projections.
+							u = SAT.Separate1D(u,v,w,x);
+							// Exit early if axis returned no collision.
+							if (u === 0 || u == Number.MAX_VALUE) return false;
+							// Store collision if smaller.
+							if ((m === 0 || u < m) && u >= 0) {
+								y = a.axes[i].x;
+								z = a.axes[i].y;
+								console.log(y, z);
+							}
 						}
+						if (!m) return false;
+						// Store the smallest separation and indicate collision.
+						SAT.res.separation.x = y;
+						SAT.res.separation.y = z;
+						SAT.res.separation.v = m;
+						return true;
 					}
 					return false;
 				},
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -482,23 +565,6 @@
 						if (axes.indexOf(ax) == -1) { axes.push(ax); }
 					}
 					return axes;
-				},
-				Separate1D: function(a,b,c,d) {
-					if (a > d || b < c) return Number.MAX_VALUE; // Not touching.
-
-					if ((b > d && a < c) || (b < d && a > c)) { // CD inside AB or AB inside CD
-						if ((b-a)/2+a>=(d-c)/2+c) { // AB is right of CD
-							return a-d;
-						} else { // AB is right of CD
-							return b-c;
-						}
-					}
-
-					if (b >= d) {
-						return a-d;
-					} else {
-						return b-c;
-					}
 				},
 				Separate: function(a,b) {
 					var i, ap, bp, dp, pd, sd, vi, min = Number.MAX_VALUE;
@@ -540,8 +606,9 @@
 					o = o || {};
 					this.box = o.box || new SAT.AABB();
 					this.points = o.points || [];
-					this.axes = o.axes || SAT.getAxes(this.points);
-					this.position = new THREE.Vector2();
+					this.axes = o.axes || SAT.GetAxes(this.points);
+					this.position = new THREE.Vector2(o.x || 0, o.y || 0);
+					this.dirty = false;
 				},
 				AABB: function(x,y,w,h,l,r,t,b) {
 					if (x instanceof THREE.Vector2) {
@@ -581,6 +648,32 @@
 					this.y2 = y2;
 					this.d1 = d1 || 0;
 					this.d2 = d2 || 0;
+				}
+			};
+			SAT.Object.prototype = {
+				calculateAxes: function() { this.axes = SAT.GetAxes(this.points); },
+				calculateBox: function() {
+					var a, b, c, d;
+					for (var i = 0, l = this.points.length; i < l; i++) {
+						if (i === 0) {
+							a = this.points[i].x;
+							b = this.points[i].y;
+							c = this.points[i].x;
+							d = this.points[i].y;
+						}
+						if (a > this.points[i].x) a = this.points[i].x;
+						if (b > this.points[i].y) b = this.points[i].y;
+						if (c < this.points[i].x) c = this.points[i].x;
+						if (d < this.points[i].y) d = this.points[i].y;
+					}
+					this.box = new SAT.AABB(a,b,c,d);
+				},
+				calculatePoints: function() {
+					this.points.length = 0;
+					this.points.push(new THREE.Vector2(this.position.x - this.box.w, this.position.y - this.box.h));
+					this.points.push(new THREE.Vector2(this.position.x - this.box.w, this.position.y + this.box.h));
+					this.points.push(new THREE.Vector2(this.position.x + this.box.w, this.position.y + this.box.h));
+					this.points.push(new THREE.Vector2(this.position.x + this.box.w, this.position.y - this.box.h));
 				}
 			};
 		</script>

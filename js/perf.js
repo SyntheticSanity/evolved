@@ -23,10 +23,6 @@ define(function() {
 		};
 	}
 
-	window.performance = performance || {};
-	performance.now = performance.now || performance.webkitNow || performance.mozNow || function() {
-		return Date.now();
-	};
 
 	var scope;
 	scope = {
@@ -36,19 +32,19 @@ define(function() {
 			if (!(scope.list[n] instanceof PerfEntry)) {
 				scope.list[n] = new PerfEntry();
 			}
-			scope.startTimes[n] = performance.now();
+			scope.startTimes[n] = Date.now();
 		},
 		end: function(n) {
-			scope.list[n].clock(performance.now() - scope.startTimes[n]);
+			scope.list[n].clock(Date.now() - scope.startTimes[n]);
 		},
 		log: function(n) {
 			if (!(scope.list[n] instanceof PerfEntry)) {
 				scope.list[n] = new PerfEntry();
 			}
 			scope.list[n].logCount++;
-			if (scope.list[n].lastLog + 16 < performance.now()) {
+			if (scope.list[n].lastLog + 16 < Date.now()) {
 				scope.list[n].clock(scope.list[n].logCount);
-				scope.list[n].lastLog = performance.now();
+				scope.list[n].lastLog = Date.now();
 				scope.list[n].logCount = 0;
 			}
 		}

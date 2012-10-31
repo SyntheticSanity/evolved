@@ -15,7 +15,7 @@ require(['three', 'controls', 'player', 'renderer', 'globals', 'sat', 'kong', 'c
 	var socket = null;
 	var sentPackets = 0;
 	var recvPackets = 0;
-	var lastPackets = performance.now();
+	var lastPackets = Date.now();
 	var packetParticles = [];
 
 	var connect = function() {
@@ -24,7 +24,7 @@ require(['three', 'controls', 'player', 'renderer', 'globals', 'sat', 'kong', 'c
 
 		socket.on('connect', function() {
 			socket.emit('update', {
-				fTime: performance.now(),
+				fTime: Date.now(),
 				name: players.self.name,
 				uid: players.self.uid,
 				player: {
@@ -63,8 +63,8 @@ require(['three', 'controls', 'player', 'renderer', 'globals', 'sat', 'kong', 'c
 						socket.emit('ident', { gid: 'evolved', name: players.self.name, uid: players.self.uid });
 					});
 				} else {
-					//var n = prompt('What is your name?') || 'Nobody' + performance.now() % 1000;
-					//players.self = new Player('female',  n, performance.now());
+					//var n = prompt('What is your name?') || 'Nobody' + Date.now() % 1000;
+					//players.self = new Player('female',  n, Date.now());
 					connect();
 					sentPackets++;
 					socket.on('connect', function() {
@@ -84,7 +84,7 @@ require(['three', 'controls', 'player', 'renderer', 'globals', 'sat', 'kong', 'c
 					players[data.uid].setup(scene);
 				}
 				if (typeof data.player.position !== 'undefined' && typeof data.player.velocity !== 'undefined') {
-					//var d = (performance.now() - data.rTime) / 2000;
+					//var d = (Date.now() - data.rTime) / 2000;
 					players[data.uid].position.x = data.player.position.x;// + data.player.velocity.x * xDelta;
 					players[data.uid].position.y = data.player.position.y;// + data.player.velocity.y * xDelta;
 					players[data.uid].velocity.x = data.player.velocity.x;
@@ -110,7 +110,7 @@ require(['three', 'controls', 'player', 'renderer', 'globals', 'sat', 'kong', 'c
 				if (typeof data.player.animation !== 'undefined') {
 					players[data.uid].character.setAnimation(data.player.animation);
 				}
-				players[data.uid].networkDelta += (performance.webkitNow() - data.rTime) / 1000;
+				players[data.uid].networkDelta += (Date.now() - data.rTime) / 1000;
 			}
 		});
 		socket.on('update', function(data) {
@@ -129,7 +129,7 @@ require(['three', 'controls', 'player', 'renderer', 'globals', 'sat', 'kong', 'c
 		setInterval(function() {
 			sentPackets++;
 			socket.emit('update', {
-				rTime: performance.now(),
+				rTime: Date.now(),
 				player: {
 					position: { x: players.self.position.x, y: players.self.position.y },
 					velocity: { x: players.self.velocity.x, y: players.self.velocity.y },
@@ -496,7 +496,7 @@ require(['three', 'controls', 'player', 'renderer', 'globals', 'sat', 'kong', 'c
 	//loader.load('mdl/ramp.js', function(geom) { loadLevelModel(geom, matBox, 2, true); loadLevelModel(geom, matBox, 3); });
 
 	level.billboards.push(new TextBillboard({ text: 'Use the arrow keys to move', size: 0.8, x: 5, y: 4 }));
-	level.billboards.push(new TextBillboard({ text: 'and shift to run.', size: 0.8, x: 5, y: 3.5 }));
+	level.billboards.push(new TextBillboard({ text: 'and Ctrl to run.', size: 0.8, x: 5, y: 3.5 }));
 	level.billboards.push(new TextBillboard({ text: 'Press UP to jump.', size: 0.8, x: 10, y: 5 }));
 	level.billboards.push(new TextBillboard({ text: 'Jump in midair to use your second jump.', size: 0.8, x: 16, y: 5 }));
 	level.billboards.push(new TextBillboard({ text: 'Hold jump for more air.', size: 0.8, x: 29, y: 5 }));
@@ -621,7 +621,7 @@ require(['three', 'controls', 'player', 'renderer', 'globals', 'sat', 'kong', 'c
 				packetParticles.shift(i);
 			}
 		}
-		if (performance.now() - lastPackets > 192) {
+		if (Date.now() - lastPackets > 192) {
 			if (sentPackets > 0) {
 				packetParticles.push({
 					count: sentPackets,
@@ -638,7 +638,7 @@ require(['three', 'controls', 'player', 'renderer', 'globals', 'sat', 'kong', 'c
 			}
 			sentPackets = 0;
 			recvPackets = 0;
-			lastPackets = performance.now();
+			lastPackets = Date.now();
 		}
 		if (DEBUGHEAVY) {
 			i = 0;

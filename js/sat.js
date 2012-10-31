@@ -6,9 +6,23 @@ define(['three','perf'], function(THREE,Perf) {
 		PointArray1: [],
 		PointArray2: [],
 		AxisArray: [],
-		Dot: function(a,b) {
-			return a.x * b.x + a.y * b.y;
-		},
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 		Per: function(v) { // Right perproduct.
 Perf.log('Create');
 			return new THREE.Vector2(v.y, -v.x);
@@ -20,6 +34,16 @@ Perf.log('Create');
 		LengthSq: function(v) { // Length Squared)
 			return v.x * v.x + v.y * v.y;
 		},
+
+
+
+
+
+
+
+
+
+
 
 		Project: function(a,b) { // Project point onto line.
 			var v = (a.x * b.x + a.y * b.y) / (b.x * b.x + b.y * b.y);
@@ -33,6 +57,18 @@ Perf.log('Create');
 			SAT.LastProjection.y = v * b.y;
 			SAT.LastProjection.v = v;
 		},
+
+
+
+
+
+
+
+
+
+
+
+
 		ProjectOnto: function(a,v) { // Project object onto line.
 			var pts = [], min, max, i;
 
@@ -58,6 +94,11 @@ Perf.log('Create');
 Perf.log('Create');
 			return new SAT.Line(min.x, min.y, max.x, max.y, min.z, max.z);
 		},
+
+
+
+
+
 		eProjectOnto: function(a,x,y) { // Project object onto line.
 			var min, max, i;
 
@@ -65,6 +106,27 @@ Perf.log('Create');
 
 			}
 		},
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 		GetAxes: function(obj,and) {
 			var axes = typeof and !== 'undefined' ? and : [], ax, pd, l;
 			if (obj instanceof SAT.AABB) {
@@ -91,23 +153,42 @@ Perf.log('Create');
 			}
 			return axes;
 		},
-		Separate1D: function(a,b,c,d) {
-			if (a > d || b < c) return Number.MAX_VALUE; // Not touching.
 
-			if ((b > d && a < c) || (b < d && a > c)) { // CD inside AB or AB inside CD
-				if ((b-a)/2+a>=(d-c)/2+c) { // AB is right of CD
-					return a-d;
-				} else { // AB is right of CD
-					return b-c;
-				}
-			}
 
-			if (b >= d) {
-				return a-d;
-			} else {
-				return b-c;
-			}
-		},
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 		Separate: function(a,b) {
 			var i, ap, bp, dp, pd, sd, vi, min = Number.MAX_VALUE;
 
@@ -142,6 +223,20 @@ Perf.log('Create');
 			return { x: v[vi].x * min, y: v[vi].y * min, v: v[vi] };
 
 		},
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 		eSeparate: function(a,b) {
 			var i, ap, bp, dp, pd, sd, vi, min = Number.MAX_VALUE;
 
@@ -177,6 +272,45 @@ Perf.log('Create');
 			SAT.LastSeparation.v = v[vi];
 			return true;
 
+		},
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		Dot: function(a,b) {
+			return a.x * b.x + a.y * b.y;
+		},
+		Separate1D: function(a,b,c,d) {
+			if (a > d || b < c) return Number.MAX_VALUE; // Not touching.
+
+			if ((b > d && a < c) || (b < d && a > c)) { // CD inside AB or AB inside CD
+				if ((b-a)/2+a>=(d-c)/2+c) { // AB is right of CD
+					return a-d;
+				} else { // AB is right of CD
+					return b-c;
+				}
+			}
+
+			if (b >= d) {
+				return a-d;
+			} else {
+				return b-c;
+			}
 		},
 		AABBvsPoint: function(a,p) {
 			if (p.x <= a.x - a.w) return false;
